@@ -1,0 +1,112 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Students</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gray-100">
+    <nav class="bg-blue-600 text-white p-4">
+        <h1 class="text-2xl font-bold">Student Performance Management</h1>
+        <div class="mt-4 flex space-x-4">
+            <a href="{{ url_for('students') }}" class="px-4 py-2 rounded bg-blue-800">Students</a>
+            <a href="{{ url_for('visualizations') }}" class="px-4 py-2 rounded bg-blue-500 hover:bg-blue-700">Visualizations</a>
+        </div>
+    </nav>
+    <div class="container mx-auto p-4">
+        <h2 class="text-xl font-bold mb-4">Manage Students</h2>
+        <div class="bg-white p-4 rounded shadow mb-4">
+            <h3 class="text-lg font-semibold mb-2">Add Student</h3>
+            <form method="POST" class="grid grid-cols-2 gap-4">
+                <input type="number" name="StudentID" placeholder="Student ID" class="border p-2 rounded" required>
+                <select name="Gender" class="border p-2 rounded" required>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                    <option value="O">Other</option>
+                </select>
+                <input type="number" name="Age" placeholder="Age (15-25)" min="15" max="25" class="border p-2 rounded" required>
+                <input type="number" name="StudyHoursPerWeek" placeholder="Study Hours/Week" min="0" max="168" class="border p-2 rounded" required>
+                <input type="number" name="AttendanceRate" placeholder="Attendance Rate (0-100)" min="0" max="100" step="0.01" class="border p-2 rounded" required>
+                <input type="number" name="GPA" placeholder="GPA (0-4.0)" min="0" max="4.0" step="0.01" class="border p-2 rounded" required>
+                <input type="text" name="Major" placeholder="Major" class="border p-2 rounded" required>
+                <label class="flex items-center"><input type="checkbox" name="PartTimeJob" class="mr-2"> Part-Time Job</label>
+                <label class="flex items-center"><input type="checkbox" name="ExtraCurricularActivities" class="mr-2"> Extra-Curricular Activities</label>
+                <button type="submit" class="bg-blue-500 text-white p-2 rounded col-span-2">Add Student</button>
+            </form>
+        </div>
+        <div class="bg-white p-4 rounded shadow">
+            <h3 class="text-lg font-semibold mb-2">Student List</h3>
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border p-2">ID</th>
+                        <th class="border p-2">Gender</th>
+                        <th class="border p-2">Age</th>
+                        <th class="border p-2">Study Hours</th>
+                        <th class="border p-2">Attendance</th>
+                        <th class="border p-2">GPA</th>
+                        <th class="border p-2">Major</th>
+                        <th class="border p-2">Part-Time Job</th>
+                        <th class="border p-2">Activities</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                        <tr>
+                            <td class="border p-2">{{ student.StudentID }}</td>
+                            <td class="border p-2">{{ student.Gender }}</td>
+                            <td class="border p-2">{{ student.Age }}</td>
+                            <td class="border p-2">{{ student.StudyHoursPerWeek }}</td>
+                            <td class="border p-2">{{ student.AttendanceRate }}</td>
+                            <td class="border p-2">{{ student.GPA }}</td>
+                            <td class="border p-2">{{ student.Major }}</td>
+                            <td class="border p-2">{{ 'Yes' if student.PartTimeJob else 'No' }}</td>
+                            <td class="border p-2">{{ 'Yes' if student.ExtraCurricularActivities else 'No' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
